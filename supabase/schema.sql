@@ -32,6 +32,17 @@ create table subscriptions (
   created_at timestamptz default now()
 );
 
+-- Webhook idempotency ledger. Every Stripe event id is inserted exactly once;
+-- the unique constraint makes replayed/duplicate deliveries a no-op instead of
+-- re-applying a subscription-tier change. See api/stripe/webhook/route.ts.
+create table if not exists stripe_events (
+  event_id text primary key,
+  type text,
+  processed_at timestamptz default now()
+);
+alter table stripe_events enable row level security;
+-- No policy: only the service_role (webhook) may touch this table.
+
 create table clients (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references profiles(id) on delete cascade,
@@ -63,7 +74,12 @@ create table invoices (
   notes text,
   paid_at timestamptz,
   created_at timestamptz default now(),
-  constraint unique_invoice_number_per_user unique (user_id, invoice_number)
+  constraint unique_invoice_number_per_user unique (user_id, invoice_number),
+  -- Money can never be negative even if a crafted client write bypasses the UI.
+  constraint invoices_non_negative check (
+    subtotal >= 0 and tax_rate >= 0 and tax_amount >= 0
+    and discount_amount >= 0 and total >= 0
+  )
 );
 
 create table invoice_items (
@@ -73,7 +89,8 @@ create table invoice_items (
   quantity numeric default 1,
   unit_price numeric default 0,
   amount numeric default 0,
-  sort_order int default 0
+  sort_order int default 0,
+  constraint invoice_items_non_negative check (quantity >= 0 and unit_price >= 0 and amount >= 0)
 );
 
 create table share_tokens (
@@ -147,5 +164,17 @@ create policy "Users own their data" on share_tokens for all using (
   auth.uid() = (select user_id from invoices where id = invoice_id)
 );
 create policy "Users own their data" on expenses for all using (auth.uid() = user_id);
+
+
+-- Performance indexes for the hot query paths (dashboard lists, joins, token lookups)
+create index if not exists idx_invoices_user_status on invoices(user_id, status);
+create index if not exists idx_invoices_user_created on invoices(user_id, created_at desc);
+create index if not exists idx_invoices_client on invoices(client_id);
+create index if not exists idx_invoices_payment_token on invoices(payment_token);
+create index if not exists idx_invoice_items_invoice on invoice_items(invoice_id);
+create index if not exists idx_clients_user on clients(user_id);
+create index if not exists idx_expenses_user_date on expenses(user_id, expense_date desc);
+create index if not exists idx_share_tokens_token on share_tokens(token);
+create index if not exists idx_subscriptions_stripe_id on subscriptions(stripe_subscription_id);
 
 

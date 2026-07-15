@@ -34,8 +34,26 @@ export async function POST(request: Request) {
     );
   }
 
+  // Idempotency guard — Stripe retries deliveries and an attacker can replay a
+  // captured webhook body+signature. Claim the event id first; a duplicate hits
+  // the primary-key conflict and we return 200 without re-applying tier changes.
+  const { error: dedupeError } = await supabaseAdmin
+    .from("stripe_events")
+    .insert({ event_id: event.id, type: event.type });
+
+  if (dedupeError) {
+    // 23505 = unique_violation → already processed. Any other error: surface it
+    // so Stripe retries rather than silently dropping the event.
+    if (dedupeError.code === "23505") {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    console.error("Webhook idempotency check failed:", dedupeError);
+    return NextResponse.json({ error: "Ledger unavailable" }, { status: 500 });
+  }
+
   const session = event.data.object as any;
 
+  try {
   switch (event.type) {
     case "checkout.session.completed": {
       const userId = session.metadata?.userId;
