@@ -65,3 +65,47 @@ export function incrementInvoiceNumber(prefix: string, lastNumber: number): stri
   const next = (lastNumber || 0) + 1;
   return `${prefix}-${String(next).padStart(4, "0")}`;
 }
+
+/**
+ * Server-side integrity check for persisted invoice money.
+ *
+ * The invoice editor is a client component that writes subtotal / tax / total
+ * straight to the DB, so a crafted request could persist amounts that don't
+ * match the canonical formula. Any server code that trusts those numbers
+ * (PDF, email, pay page) can call this to detect tampering. Recompute is done
+ * through the SAME `calculateInvoiceTotals`, so there is exactly one formula.
+ *
+ * Returns `{ ok, expected }`. Compared in integer cents — exact, no float
+ * tolerance — because the canonical formula is itself cents-based.
+ */
+export function validateInvoiceTotals(
+  persisted: { subtotal: number; taxAmount: number; discountAmount: number; total: number },
+  lineItems: LineItemInput[],
+  taxRate: string | number,
+  discountType: "fixed" | "percent",
+  discountValue: string | number
+): { ok: boolean; expected: InvoiceTotals } {
+  const expected = calculateInvoiceTotals(lineItems, taxRate, discountType, discountValue);
+  const cents = (n: number) => Math.round((Number(n) || 0) * 100);
+  const ok =
+    cents(persisted.subtotal) === cents(expected.subtotal) &&
+    cents(persisted.taxAmount) === cents(expected.taxAmount) &&
+    cents(persisted.discountAmount) === cents(expected.discountAmount) &&
+    cents(persisted.total) === cents(expected.total);
+  return { ok, expected };
+}
+
+/**
+ * Parse a `YYYY-MM-DD` invoice/due date into a Date at LOCAL midnight.
+ *
+ * `new Date("2024-02-29")` parses as UTC midnight, which in any negative-offset
+ * timezone renders as Feb 28 — an off-by-one on due dates that decides whether
+ * an invoice is overdue. Building the Date from explicit parts pins it to the
+ * local day the user actually typed. Leap-year safe (locked by test).
+ */
+export function parseInvoiceDate(dateStr: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr || "");
+  if (!match) return new Date(dateStr);
+  const [, y, m, d] = match;
+  return new Date(Number(y), Number(m) - 1, Number(d));
+}

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { format } from "date-fns";
+import { parseInvoiceDate } from "@/lib/invoice-utils";
 import React from "react";
 import {
   Document,
@@ -154,8 +155,8 @@ export async function GET(
   const headerRight = React.createElement(View, { style: styles.headerRight },
     React.createElement(Text, { style: styles.invoiceTitle }, "INVOICE"),
     React.createElement(Text, { style: styles.invoiceNumber }, `#${invoice.invoice_number}`),
-    React.createElement(Text, { style: { ...styles.textSm, marginTop: 12 } }, `Issue: ${format(new Date(invoice.issue_date), "MMM d, yyyy")}`),
-    React.createElement(Text, { style: styles.textSm }, `Due: ${format(new Date(invoice.due_date), "MMM d, yyyy")}`),
+    React.createElement(Text, { style: { ...styles.textSm, marginTop: 12 } }, `Issue: ${format(parseInvoiceDate(invoice.issue_date), "MMM d, yyyy")}`),
+    React.createElement(Text, { style: styles.textSm }, `Due: ${format(parseInvoiceDate(invoice.due_date), "MMM d, yyyy")}`),
   );
 
   const header = React.createElement(View, { key: "header", style: styles.header },
