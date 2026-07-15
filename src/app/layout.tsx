@@ -18,6 +18,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "BillFlow — Simple Invoicing for Freelancers",
   description: "Describe your work. We write the invoice.",
+  openGraph: {
+    title: "BillFlow — Simple Invoicing for Freelancers",
+    description: "AI-powered invoicing. Describe your work, we generate the invoice. Stripe payments built in.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

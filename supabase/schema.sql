@@ -62,7 +62,8 @@ create table invoices (
   currency text default 'USD',
   notes text,
   paid_at timestamptz,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  constraint unique_invoice_number_per_user unique (user_id, invoice_number)
 );
 
 create table invoice_items (
@@ -103,7 +104,40 @@ alter table invoice_items enable row level security;
 alter table share_tokens enable row level security;
 alter table expenses enable row level security;
 
-create policy "Users own their data" on profiles for all using (auth.uid() = id);
+-- RLS policies — hardened Round 1 + Round 2
+-- SELECT: user can only see their own profile
+create policy "Users can view own profile" on profiles for select using (auth.uid() = id);
+
+-- INSERT: only via server-side signup (service_role), not client-controlled
+-- This prevents users from setting subscription_tier at signup time via upsert
+create policy "Only service role can create profiles" on profiles for insert
+  with check (auth.role() = 'service_role');
+
+-- UPDATE: only own row, and cannot change subscription_tier or stripe_customer_id
+create policy "Users can update own non-sensitive profile fields" on profiles
+  for update using (auth.uid() = id)
+  with check (
+    subscription_tier = (select subscription_tier from profiles where id = auth.uid())
+    and stripe_customer_id is not distinct from (select stripe_customer_id from profiles where id = auth.uid())
+  );
+
+-- No DELETE policy — profiles are not user-deletable
+-- Use a database trigger to auto-create profiles on auth.users insert:
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, subscription_tier, default_currency)
+  values (new.id, 'free', 'USD');
+  return new;
+end;
+$$;
+
+create or replace trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
 create policy "Users own their data" on clients for all using (auth.uid() = user_id);
 create policy "Users own their data" on invoices for all using (auth.uid() = user_id);
 create policy "Users own their data" on invoice_items for all using (

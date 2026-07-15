@@ -4,7 +4,10 @@ let _stripe: Stripe | null = null;
 
 function getStripe() {
   if (!_stripe) {
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_placeholder", {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error("STRIPE_SECRET_KEY environment variable is required");
+    }
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
       apiVersion: "2025-06-02.acacia" as any,
     });
   }
