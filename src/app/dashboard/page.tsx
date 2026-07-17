@@ -49,11 +49,6 @@ export default function DashboardPage() {
   const [revenueData, setRevenueData] = useState<RevenueDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) return;
-    loadDashboard();
-  }, [user]);
-
   async function loadDashboard() {
     setLoading(true);
     const currency = (profile?.default_currency || "USD") as Currency;
@@ -126,6 +121,12 @@ export default function DashboardPage() {
 
     setLoading(false);
   }
+
+  useEffect(() => {
+    if (!user) return;
+    loadDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   if (!user || !profile) return null;
 
@@ -247,8 +248,8 @@ export default function DashboardPage() {
                     border: "1px solid #1c2e28",
                     borderRadius: "8px",
                   }}
-                  formatter={(value: any) => [
-                    formatCurrency(value, stats?.defaultCurrency || "USD"),
+                  formatter={(value: unknown) => [
+                    formatCurrency(Number(value), stats?.defaultCurrency || "USD"),
                     "Revenue",
                   ]}
                 />

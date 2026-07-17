@@ -76,11 +76,6 @@ export default function ExpensesPage() {
   );
   const [expenseNotes, setExpenseNotes] = useState("");
 
-  useEffect(() => {
-    if (!user) return;
-    loadExpenses();
-  }, [user]);
-
   async function loadExpenses() {
     setLoading(true);
     const { data } = await supabase
@@ -92,6 +87,12 @@ export default function ExpensesPage() {
     setExpenses((data || []) as Expense[]);
     setLoading(false);
   }
+
+  useEffect(() => {
+    if (!user) return;
+    loadExpenses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   function openNewDialog() {
     setEditingExpense(null);
@@ -310,7 +311,7 @@ export default function ExpensesPage() {
                             border: "1px solid #1c2e28",
                             borderRadius: "8px",
                           }}
-                          formatter={(value: any) => [
+                          formatter={(value: unknown) => [
                             formatCurrency(
                               Number(value || 0),
                               (profile?.default_currency as Currency) || "USD"

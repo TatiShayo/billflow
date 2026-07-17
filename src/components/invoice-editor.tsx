@@ -69,10 +69,10 @@ export function InvoiceEditor({ invoiceId }: InvoiceEditorProps) {
   const [clientId, setClientId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [issueDate, setIssueDate] = useState(
-    new Date().toISOString().split("T")[0]
+    () => new Date().toISOString().split("T")[0]
   );
   const [dueDate, setDueDate] = useState(
-    new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0]
+    () => new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0]
   );
   const [currency, setCurrency] = useState<Currency>(
     (profile?.default_currency as Currency) || "USD"
@@ -84,7 +84,7 @@ export function InvoiceEditor({ invoiceId }: InvoiceEditorProps) {
   const [discountValue, setDiscountValue] = useState("0");
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("draft");
-  const [lineItems, setLineItems] = useState<LineItem[]>([
+  const [lineItems, setLineItems] = useState<LineItem[]>(() => [
     { key: crypto.randomUUID(), description: "", quantity: 1, unitPrice: 0 },
   ]);
 
@@ -97,12 +97,6 @@ export function InvoiceEditor({ invoiceId }: InvoiceEditorProps) {
   const [showNewClient, setShowNewClient] = useState(false);
   const [newClientName, setNewClientName] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
-
-  // Load invoice if editing
-  useEffect(() => {
-    if (!user) return;
-    loadData();
-  }, [user, invoiceId]);
 
   async function loadData() {
     setLoading(true);
@@ -168,6 +162,13 @@ export function InvoiceEditor({ invoiceId }: InvoiceEditorProps) {
 
     setLoading(false);
   }
+
+  // Load invoice if editing
+  useEffect(() => {
+    if (!user) return;
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, invoiceId]);
 
   // Calculate totals with safe money rounding
   const { subtotal, taxAmount, discountAmount, total } = calculateInvoiceTotals(

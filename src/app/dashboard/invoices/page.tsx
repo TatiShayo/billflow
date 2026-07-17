@@ -59,7 +59,7 @@ export default function InvoicesPage() {
   const loadInvoices = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    let query = supabase
+    const query = supabase
       .from("invoices")
       .select("*, client:clients(*)")
       .eq("user_id", user.id)

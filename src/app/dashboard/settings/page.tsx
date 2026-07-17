@@ -91,10 +91,10 @@ export default function SettingsPage() {
     const terms = profile.payment_terms || "Net 30";
     setPaymentTerms(terms.replace("Net ", ""));
     setNotifyOnPayment(
-      (profile as any).notify_on_payment !== false
+      (profile as { notify_on_payment?: boolean }).notify_on_payment !== false
     );
     setNotifyOverdue(
-      (profile as any).notify_overdue !== false
+      (profile as { notify_overdue?: boolean }).notify_overdue !== false
     );
   }, [profile]);
 
@@ -182,7 +182,7 @@ export default function SettingsPage() {
         return;
       }
 
-      const { error: stripeError } = await (stripe as any).redirectToCheckout({
+      const { error: stripeError } = await (stripe as unknown as { redirectToCheckout: (o: { sessionId: string }) => Promise<{ error?: { message: string } }> }).redirectToCheckout({
         sessionId,
       });
 

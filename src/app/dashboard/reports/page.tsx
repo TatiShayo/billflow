@@ -40,11 +40,6 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [monthCount, setMonthCount] = useState(6);
 
-  useEffect(() => {
-    if (!user) return;
-    loadData();
-  }, [user, monthCount]);
-
   async function loadData() {
     setLoading(true);
     const { data } = await supabase
@@ -56,6 +51,12 @@ export default function ReportsPage() {
     setInvoices((data || []) as InvoiceWithRelations[]);
     setLoading(false);
   }
+
+  useEffect(() => {
+    if (!user) return;
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, monthCount]);
 
   const currency = (profile?.default_currency || "USD") as Currency;
   const now = new Date();
@@ -197,8 +198,8 @@ export default function ReportsPage() {
                           border: "1px solid #1c2e28",
                           borderRadius: "8px",
                         }}
-                        formatter={(value: any) => [
-                          formatCurrency(value, currency),
+                        formatter={(value: unknown) => [
+                          formatCurrency(Number(value), currency),
                           "Revenue",
                         ]}
                       />

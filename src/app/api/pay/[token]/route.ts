@@ -31,11 +31,17 @@ export async function GET(
       // Check by share_token
       const { data: shareToken } = await supabaseAdmin
         .from("share_tokens")
-        .select("invoice_id")
+        .select("invoice_id, expires_at")
         .eq("token", token)
         .single();
 
-      if (shareToken) {
+      // Expired share tokens must not authorize access.
+      const shareTokenValid =
+        shareToken &&
+        (!shareToken.expires_at ||
+          new Date(shareToken.expires_at).getTime() > Date.now());
+
+      if (shareTokenValid) {
         const { data: sharedInvoice } = await supabaseAdmin
           .from("invoices")
           .select(PUBLIC_INVOICE_FIELDS)

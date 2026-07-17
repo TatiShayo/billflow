@@ -26,10 +26,6 @@ export default function PayPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    loadInvoice();
-  }, [token]);
-
   async function loadInvoice() {
     setLoading(true);
     try {
@@ -45,6 +41,11 @@ export default function PayPage({
     }
     setLoading(false);
   }
+
+  useEffect(() => {
+    loadInvoice();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   async function downloadPdf() {
     if (!invoice) return;
@@ -92,7 +93,7 @@ export default function PayPage({
   }
 
   const currency = (invoice.currency as Currency) || "USD";
-  const items = ((invoice as any).items || []) as any[];
+  const items = invoice.items || [];
 
   return (
     <div className="min-h-screen bg-background flex items-start justify-center py-12 px-4">
@@ -168,7 +169,7 @@ export default function PayPage({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item: any, idx: number) => (
+                {items.map((item, idx) => (
                   <tr key={idx} className="border-b border-gray-100">
                     <td className="py-3 text-sm">{item.description}</td>
                     <td className="py-3 text-sm text-right px-4 font-mono">

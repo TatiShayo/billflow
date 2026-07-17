@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { format } from "date-fns";
 import { parseInvoiceDate } from "@/lib/invoice-utils";
@@ -79,8 +79,13 @@ export async function GET(
     data: { user },
   } = await supabase.auth.getUser();
 
+  // A share token that has an expiry and is past it must not authorize access.
+  const isShareTokenValid = (st: { expires_at: string | null } | null) =>
+    !!st && (!st.expires_at || new Date(st.expires_at).getTime() > Date.now());
+
   let invoice;
   if (user) {
+    // Authenticated path: ownership enforced explicitly (and by RLS).
     const { data } = await supabase
       .from("invoices")
       .select("*, client:clients(*), items:invoice_items(*)")
@@ -89,23 +94,28 @@ export async function GET(
       .single();
     invoice = data;
   } else {
+    // Unauthenticated path: authorization = possession of an unguessable token.
+    // Must use the service-role client — the anon client is blocked by RLS, so
+    // this branch previously always 404'd (share-link PDFs were dead).
+    const admin = createServiceClient();
+
     // Check if the parameter 'id' itself is a share token
-    const { data: shareToken } = await supabase
+    const { data: shareToken } = await admin
       .from("share_tokens")
-      .select("invoice_id")
+      .select("invoice_id, expires_at")
       .eq("token", id)
       .single();
 
-    if (shareToken) {
-      const { data } = await supabase
+    if (isShareTokenValid(shareToken)) {
+      const { data } = await admin
         .from("invoices")
         .select("*, client:clients(*), items:invoice_items(*)")
-        .eq("id", shareToken.invoice_id)
+        .eq("id", shareToken!.invoice_id)
         .single();
       invoice = data;
     } else if (token) {
       // Check if query param token is the payment_token
-      const { data } = await supabase
+      const { data } = await admin
         .from("invoices")
         .select("*, client:clients(*), items:invoice_items(*)")
         .eq("id", id)
@@ -114,16 +124,16 @@ export async function GET(
       invoice = data;
 
       if (!invoice) {
-        // Check if query param token is a share token
-        const { data: shareTokenByQuery } = await supabase
+        // Check if query param token is a share token for THIS invoice
+        const { data: shareTokenByQuery } = await admin
           .from("share_tokens")
-          .select("invoice_id")
+          .select("invoice_id, expires_at")
           .eq("token", token)
           .eq("invoice_id", id)
           .single();
 
-        if (shareTokenByQuery) {
-          const { data: sharedInvoice } = await supabase
+        if (isShareTokenValid(shareTokenByQuery)) {
+          const { data: sharedInvoice } = await admin
             .from("invoices")
             .select("*, client:clients(*), items:invoice_items(*)")
             .eq("id", id)
@@ -138,14 +148,26 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const { data: profile } = user
-    ? await supabase.from("profiles").select("*").eq("id", user.id).single()
-    : { data: null };
+  // Company header comes from the invoice OWNER's profile. For token access,
+  // fetch it via service role (the anon client cannot read profiles).
+  const profileClient = user ? supabase : createServiceClient();
+  const { data: profile } = await profileClient
+    .from("profiles")
+    .select("company_name, address, phone, tax_number")
+    .eq("id", user ? user.id : invoice.user_id)
+    .single();
 
-  const items = (invoice.items || []) as any[];
+  interface PdfItem {
+    id?: string;
+    description: string;
+    quantity: number;
+    unit_price: number;
+    amount: number;
+  }
+  const items = (invoice.items || []) as PdfItem[];
   const currency: string = invoice.currency || "USD";
 
-  const headerLeftChildren: any[] = [
+  const headerLeftChildren: React.ReactElement[] = [
     React.createElement(Text, { key: "cn", style: styles.companyName }, profile?.company_name || "BillFlow"),
   ];
   if (profile?.address) headerLeftChildren.push(React.createElement(Text, { key: "addr", style: styles.textSm }, profile.address));
@@ -164,10 +186,10 @@ export async function GET(
     headerRight,
   );
 
-  const pageChildren: any[] = [header];
+  const pageChildren: React.ReactElement[] = [header];
 
   if (invoice.client) {
-    const bc: any[] = [
+    const bc: React.ReactElement[] = [
       React.createElement(Text, { key: "label", style: styles.billToLabel }, "Bill To"),
       React.createElement(Text, { key: "name", style: styles.billToName }, invoice.client.name),
     ];
@@ -177,7 +199,7 @@ export async function GET(
     pageChildren.push(React.createElement(View, { key: "billTo" }, ...bc));
   }
 
-  const tableRows: any[] = [
+  const tableRows: React.ReactElement[] = [
     React.createElement(View, { key: "thead", style: styles.tableHeader },
       React.createElement(Text, { style: styles.thDesc }, "Description"),
       React.createElement(Text, { style: styles.thQty }, "Qty"),
@@ -199,7 +221,7 @@ export async function GET(
 
   pageChildren.push(React.createElement(View, { key: "table", style: styles.table }, ...tableRows));
 
-  const totalsRows: any[] = [
+  const totalsRows: React.ReactElement[] = [
     React.createElement(View, { key: "subtotal", style: styles.totalsRow },
       React.createElement(Text, { style: styles.mutedText }, "Subtotal"),
       React.createElement(Text, {}, formatAmount(Number(invoice.subtotal), currency)),
