@@ -88,3 +88,62 @@ Status: **Still missing.** Privacy policy, terms page, and signup consent checkb
 ### MEDIUM — Free tier limits unenforced
 **Finding:** TIER_LIMITS defined but never enforced server-side. Free users have no cap on clients, invoices, or expenses.
 **Status:** Deferred — needs row-count checks in API routes or RLS policies.
+
+---
+
+## ROUND 5 — Money-Math Test Lock (July 15, 2026)
+
+- Characterization tests expanded: float drift, negative clamps, discount cap,
+  sub-cent rounding — canonical cents formula locked.
+- `validateInvoiceTotals`: server-side tamper check through the single formula.
+- `parseInvoiceDate`: local-midnight parsing fixes UTC off-by-one on due/issue
+  dates (leap-year locked); wired into the PDF route.
+
+## ROUND 6 — FINAL: Webhook Idempotency, RLS Fallout, Gate Green (July 17, 2026)
+
+### CRITICAL — Webhook replay abuse chain closed end-to-end
+`stripe_events` PK ledger claims each event id before any state change; replayed
+signed deliveries → 200 no-op. On processing failure the ledger row is RELEASED
+so Stripe's retry re-applies the event (no half-applied "handled" events).
+Decision table + plan whitelist + price-id→tier mapping locked by
+`src/lib/webhook-utils.test.ts`. Gate had been left broken (unclosed try, TS1472)
+by the interrupted prior pass — completed.
+
+### HIGH — RLS hardening fallout fixed (self-inflicted, found by review)
+The Round-1 policy that freezes `subscription_tier`/`stripe_customer_id` also
+silently rejected the app's OWN user-scoped writes:
+- checkout: `stripe_customer_id` link never persisted → duplicate Stripe
+  customer per checkout. Now service-role + error surfaced.
+- cancel: immediate downgrade never persisted. Now service-role; webhook stays
+  source of truth.
+
+### HIGH — Share-link PDFs were dead; token expiry never enforced
+Unauthenticated PDF branch used the anon client (RLS → always 404). Now
+service-role with token possession as authorization; `share_tokens.expires_at`
+honored in PDF + pay APIs.
+
+### HIGH — Build error: middleware.ts vs proxy.ts
+This Next 16 fork auto-wires `src/proxy.ts` (middleware convention deprecated);
+Round 2's `middleware.ts` made the build fail. Removed.
+
+### Hardening batch
+- Zod on checkout (plan enum = intent; price resolved server-side) and AI route.
+- Per-user rate limits: ai 10/min, send 20/min, checkout 10/min, cancel 5/min.
+- Send route: `validateInvoiceTotals` gate — tampered persisted totals → 422
+  before any amount is emailed.
+- Open-redirect guard on `/auth/callback?next=`.
+- Error boundaries (`error.tsx`, `global-error.tsx`, Next 16 `unstable_retry`).
+- Stripe SDK `maxNetworkRetries: 2`.
+- ESLint zero errors (typed recharts formatters, removed `any`s, lazy state
+  initializers, effect ordering); `react-hooks/set-state-in-effect` → warn with
+  tracked RSC refactor.
+
+### Gate (final)
+`tsc --noEmit` ✓ · `eslint` 0 errors ✓ · `next build` ✓ · `vitest` 24/24 ✓
+
+### Still deferred (flagged, not silently dropped)
+Server-side invoice write route (H1 full fix) · webhook transaction RPC (H10) ·
+tier limits server-side (M6) · Stripe Payment Intents for invoice payment (M5) ·
+dependency CVE bumps (M9) · legal pages (L2) · dashboard RSC refactor (M10).
+
+**AUDIT COMPLETE.**

@@ -14,8 +14,8 @@ Tailwind v4 + shadcn/ui · Recharts · Zod · Vitest.
 
 ```
 src/
-├── middleware.ts            Re-exports proxy() as Next middleware (route protection)
-├── proxy.ts                 Supabase SSR auth guard for /dashboard + /api/* protected paths
+├── proxy.ts                 Supabase SSR auth guard (Next 16 proxy file convention,
+│                            auto-wired — replaces the old middleware.ts)
 ├── app/
 │   ├── layout.tsx           Root layout, dark theme, metadata/OG, Toaster
 │   ├── page.tsx             Marketing landing
@@ -58,7 +58,7 @@ src/
 
 ## Data flow
 
-**Auth.** Supabase Auth. `middleware.ts` → `proxy.ts` runs `supabase.auth.getUser()` on every
+**Auth.** Supabase Auth. `proxy.ts` (Next 16 proxy convention) runs `supabase.auth.getUser()` on every
 request and redirects unauthenticated users away from `/dashboard` and protected `/api/*` paths.
 A Postgres trigger (`handle_new_user`) auto-creates a `profiles` row (`subscription_tier='free'`)
 on `auth.users` insert, so tier can't be client-set at signup. `useAuth()` hydrates `user`+`profile`
@@ -66,13 +66,14 @@ on the client via `onAuthStateChange`.
 
 **Invoicing (client-heavy).** `invoice-editor.tsx` computes totals with `calculateInvoiceTotals()`
 and writes `invoices` + `invoice_items` **directly to Supabase from the browser**. RLS enforces
-row ownership (`auth.uid() = user_id`); DB CHECK constraints enforce non-negative money. There is
-no server API that recomputes amounts — the DB is the last line of defence (see Security notes).
+row ownership (`auth.uid() = user_id`); DB CHECK constraints enforce non-negative money. The send-email route re-verifies persisted totals
+against the canonical formula (`validateInvoiceTotals`) before any amount is emailed; the DB
+CHECK constraints are the last line of defence.
 
 **Public sharing.** Each invoice has a `payment_token` (uuid) plus optional `share_tokens` rows.
 `/pay/[token]` and `/api/pay/[token]` resolve a token → invoice using the **service-role** client,
 returning only whitelisted public columns. The PDF route accepts either an authenticated owner or
-a valid share/pay token.
+a valid, unexpired share/pay token (service-role reads; token possession is the authorization).
 
 **Stripe subscriptions.** `checkout` creates/reuses a Stripe customer and a Checkout Session
 (server-side price IDs; client only sends a plan name). On completion Stripe calls
@@ -93,7 +94,8 @@ recomputed by `calculateInvoiceTotals`.
 `profiles` splits SELECT/INSERT/UPDATE so users can't change `subscription_tier` or
 `stripe_customer_id`; INSERT is service-role only. `invoices` has `UNIQUE(user_id, invoice_number)`
 and non-negative money CHECK constraints; `invoice_items` has non-negative CHECK constraints.
-`processed_stripe_events` records handled webhook event ids for idempotency.
+`stripe_events` records handled webhook event ids for idempotency (PK on event id; the
+row is released if processing fails so Stripe's retry re-applies the event).
 
 ## Trust boundaries
 
@@ -102,4 +104,5 @@ and non-negative money CHECK constraints; `invoice_items` has non-negative CHECK
 | Browser → Supabase (invoice write) | client computes totals | RLS ownership + DB CHECK (≥0) |
 | Browser → `/api/stripe/checkout` | server picks price ID | auth + plan allowlist |
 | Stripe → `/api/stripe/webhook` | signed event | signature verify + event-id idempotency |
-| Public → `/api/pay/[token]` | none | token lookup, whitelisted columns |
+| Public → `/api/pay/[token]` | none | token lookup + expiry, whitelisted columns |
+| Browser → `/api/invoices/[id]/send` | server verifies persisted totals | auth + ownership + `validateInvoiceTotals` + rate limit |

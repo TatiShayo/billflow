@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BillFlow
 
-## Getting Started
+Invoicing SaaS for freelancers — clients, invoices (manual or AI-drafted), email
+delivery with public pay links, PDF export, expenses, reports, and a three-tier
+Stripe subscription (free / pro / business).
 
-First, run the development server:
+**Stack:** Next.js 16 (App Router, React 19, Turbopack) · TypeScript · Supabase
+(Postgres + Auth + RLS) · Stripe · OpenAI · Resend · `@react-pdf/renderer` ·
+Tailwind v4 + shadcn/ui · Recharts · Zod · Vitest
+
+## Highlights
+
+- **Money math done once, in integer cents.** A single canonical formula
+  (`src/lib/invoice-utils.ts`) computes subtotal/tax/discount/total; the editor,
+  server checks, and tests all share it. Characterization tests lock float-drift,
+  rounding, clamping, and discount-cap invariants.
+- **Defense-in-depth on billing.** Stripe webhook: signature verification +
+  persisted event-id idempotency (replay-proof, retry-safe). Clients send intent
+  (a plan name), never amounts — prices resolve server-side. RLS freezes
+  `subscription_tier`/`stripe_customer_id` against self-upgrade; a DB trigger
+  creates profiles as `free`.
+- **Tamper gates.** Persisted invoice totals are re-verified against the
+  canonical formula before any amount is emailed to a client; DB CHECK
+  constraints keep money non-negative even against crafted writes.
+- **Hardened surface.** Zod on API boundaries, per-user rate limits, security
+  headers + CSP, open-redirect guard, ownership checks on every route, expiring
+  share tokens, whitelisted public columns on the pay endpoint.
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.local.example .env.local   # fill in Supabase / Stripe / OpenAI / Resend keys
+npm run dev                        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Apply `supabase/schema.sql` to your Supabase project (tables, RLS policies,
+trigger, indexes). Point a Stripe webhook at `/api/stripe/webhook` with the
+`checkout.session.completed` and `customer.subscription.*` events.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | |
+|---|---|
+| `npm run dev` | dev server |
+| `npm run build` | production build |
+| `npm run lint` | eslint (zero errors enforced) |
+| `npm test` | vitest — money-math + webhook characterization tests |
 
-## Learn More
+## Documentation
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `ARCHITECTURE.md` — module map, data flow, trust boundaries
+- `REVIEW_FINDINGS.md` — full security/money audit findings and their status
+- `AUDIT_LOG.md` — chronological hardening log
