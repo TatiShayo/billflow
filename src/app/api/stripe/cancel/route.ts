@@ -1,5 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
+import { rateLimit, rateLimitResponseInit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 
 export async function POST() {
@@ -11,6 +12,14 @@ export async function POST() {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const limited = rateLimit(`cancel:${user.id}`, 5, 60_000);
+    if (!limited.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        rateLimitResponseInit(limited)
+      );
     }
 
     const { data: profile } = await supabase
@@ -32,10 +41,17 @@ export async function POST() {
       }
     }
 
-    await supabase
+    // Immediate downgrade for UX; the customer.subscription.deleted webhook is
+    // the source of truth and re-applies "free" idempotently. Service-role
+    // client required — RLS freezes subscription_tier for user-scoped writes.
+    const admin = createServiceClient();
+    const { error: tierError } = await admin
       .from("profiles")
       .update({ subscription_tier: "free" })
       .eq("id", user.id);
+    if (tierError) {
+      console.error("Cancel downgrade failed (webhook will settle):", tierError);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

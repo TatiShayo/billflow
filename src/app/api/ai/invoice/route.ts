@@ -1,6 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai";
+import { rateLimit, rateLimitResponseInit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
+const aiInvoiceSchema = z.object({
+  description: z.string().trim().min(1).max(4000),
+  currency: z.string().trim().max(8).optional(),
+});
 
 export async function POST(request: Request) {
   try {
@@ -31,14 +38,23 @@ export async function POST(request: Request) {
       );
     }
 
-    const { description, currency } = await request.json();
-
-    if (!description?.trim()) {
+    // The OpenAI call is the most expensive operation in the app — cap it.
+    const limited = rateLimit(`ai:${user.id}`, 10, 60_000);
+    if (!limited.allowed) {
       return NextResponse.json(
-        { error: "Description is required" },
+        { error: "Too many requests, slow down" },
+        rateLimitResponseInit(limited)
+      );
+    }
+
+    const parsed = aiInvoiceSchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Description is required (max 4000 chars)" },
         { status: 400 }
       );
     }
+    const { description, currency } = parsed.data;
 
     const openai = getOpenAI();
     const completion = await openai.chat.completions.create({

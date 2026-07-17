@@ -1,6 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getStripe, getProPriceId, getBusinessPriceId } from "@/lib/stripe";
+import { rateLimit, rateLimitResponseInit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
+const checkoutSchema = z.object({
+  // Client sends INTENT (a plan name); price comes from server-side env config.
+  plan: z.enum(["pro", "business"]),
+});
 
 export async function POST(request: Request) {
   try {
@@ -13,15 +20,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { plan } = await request.json();
+    const limited = rateLimit(`checkout:${user.id}`, 10, 60_000);
+    if (!limited.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        rateLimitResponseInit(limited)
+      );
+    }
 
-    if (!plan || !["pro", "business"].includes(plan)) {
+    const parsed = checkoutSchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
+    const { plan } = parsed.data;
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("*")
+      .select("stripe_customer_id")
       .eq("id", user.id)
       .single();
 
@@ -35,10 +50,19 @@ export async function POST(request: Request) {
       });
       customerId = customer.id;
 
-      await supabase
+      // Must use the service-role client: the hardened RLS UPDATE policy
+      // freezes stripe_customer_id for end users, so the user-scoped client's
+      // write was silently rejected — every checkout minted a duplicate
+      // Stripe customer. Check the error so a failure surfaces.
+      const admin = createServiceClient();
+      const { error: linkError } = await admin
         .from("profiles")
         .update({ stripe_customer_id: customerId })
         .eq("id", user.id);
+      if (linkError) {
+        console.error("Failed to link Stripe customer:", linkError);
+        return NextResponse.json({ error: "Checkout failed" }, { status: 500 });
+      }
     }
 
     const priceId =

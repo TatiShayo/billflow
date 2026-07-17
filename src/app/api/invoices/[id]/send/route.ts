@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getResend } from "@/lib/resend";
+import { rateLimit, rateLimitResponseInit } from "@/lib/rate-limit";
+import { validateInvoiceTotals } from "@/lib/invoice-utils";
 import { NextResponse } from "next/server";
 
 export async function POST(
@@ -17,15 +19,50 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const limited = rateLimit(`send:${user.id}`, 20, 60_000);
+  if (!limited.allowed) {
+    return NextResponse.json(
+      { error: "Too many emails, slow down" },
+      rateLimitResponseInit(limited)
+    );
+  }
+
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("*, client:clients(*)")
+    .select("*, client:clients(*), items:invoice_items(*)")
     .eq("id", id)
     .eq("user_id", user.id)
     .single();
 
   if (!invoice) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // Money integrity gate: the editor computes totals client-side and writes
+  // them directly, so verify the persisted numbers against the single
+  // canonical formula before emailing an amount to a client. Discount is
+  // validated as a fixed amount since only discount_amount is persisted.
+  const items = ((invoice.items || []) as { quantity: number; unit_price: number }[]).map(
+    (it) => ({ quantity: Number(it.quantity), unitPrice: Number(it.unit_price) })
+  );
+  const integrity = validateInvoiceTotals(
+    {
+      subtotal: Number(invoice.subtotal),
+      taxAmount: Number(invoice.tax_amount),
+      discountAmount: Number(invoice.discount_amount),
+      total: Number(invoice.total),
+    },
+    items,
+    Number(invoice.tax_rate),
+    "fixed",
+    Number(invoice.discount_amount)
+  );
+  if (!integrity.ok) {
+    console.error(`Invoice ${id} totals fail integrity check`, integrity.expected);
+    return NextResponse.json(
+      { error: "Invoice totals are inconsistent — re-save the invoice before sending" },
+      { status: 422 }
+    );
   }
 
   if (!invoice.client?.email) {
