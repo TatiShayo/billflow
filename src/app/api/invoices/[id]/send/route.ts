@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getResend } from "@/lib/resend";
 import { rateLimit, rateLimitResponseInit } from "@/lib/rate-limit";
 import { validateInvoiceTotals } from "@/lib/invoice-utils";
+import { formatCurrency, type Currency } from "@/lib/types";
 import { NextResponse } from "next/server";
 
 export async function POST(
@@ -108,7 +109,7 @@ export async function POST(
             <h2 style="color: #111; margin: 0 0 16px;">Invoice ${invoice.invoice_number}</h2>
             <p style="color: #555; line-height: 1.6;">Hi ${invoice.client.name},</p>
             <p style="color: #555; line-height: 1.6;">
-              ${profile?.company_name || "A freelancer"} has sent you an invoice for <strong style="color: #111;">$${Number(invoice.total).toFixed(2)}</strong>, due ${new Date(invoice.due_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.
+              ${profile?.company_name || "A freelancer"} has sent you an invoice for <strong style="color: #111;">${formatCurrency(Number(invoice.total), (invoice.currency || "USD") as Currency)}</strong>, due ${new Date(invoice.due_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.
             </p>
             <a href="${appUrl}/pay/${payToken}" style="display: inline-block; background: #10b981; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 16px 0; font-size: 15px;">View Invoice</a>
             <p style="color: #888; font-size: 12px; margin-top: 32px; border-top: 1px solid #eee; padding-top: 16px;">Sent via <strong>BillFlow</strong> — Simple invoicing for freelancers</p>

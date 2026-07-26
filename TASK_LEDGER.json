@@ -1,0 +1,51 @@
+{
+  "schema": "hermes.ledger.v5",
+  "run_id": "hermes-2026-07-25-b401",
+  "project": "billflow",
+  "work_items": [
+    {
+      "id": "WI-01",
+      "title": "Fix TypeScript compilation error and missing dependencies",
+      "state": "merged",
+      "acceptance_criteria": [
+        {
+          "id": "AC-1",
+          "text": "npx tsc --noEmit completes cleanly with zero errors",
+          "verified_by": "TEST_RESULTS.json#status"
+        }
+      ],
+      "cycle_count": 1,
+      "max_cycles": 3,
+      "owner": "developer_agent#1",
+      "budget": {
+        "allocated_usd": 2.0,
+        "spent_usd": 0.25,
+        "hard_cap_usd": 3.0
+      },
+      "blocked_on": null,
+      "unreviewed_runs": 0
+    },
+    {
+      "id": "WI-02",
+      "title": "Fix multi-currency support in invoice email notification template",
+      "state": "merged",
+      "acceptance_criteria": [
+        {
+          "id": "AC-2",
+          "text": "Email notification formats currency using invoice.currency via formatCurrency",
+          "verified_by": "TEST_RESULTS.json#properties[0]"
+        }
+      ],
+      "cycle_count": 1,
+      "max_cycles": 3,
+      "owner": "developer_agent#1",
+      "budget": {
+        "allocated_usd": 2.0,
+        "spent_usd": 0.3,
+        "hard_cap_usd": 3.0
+      },
+      "blocked_on": null,
+      "unreviewed_runs": 0
+    }
+  ]
+}

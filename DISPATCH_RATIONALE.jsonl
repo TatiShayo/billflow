@@ -1,0 +1,5 @@
+{"schema":"hermes.dispatch.v5","timestamp":"2026-07-25T11:53:00+03:00","phase":"0.0","action":"INVENTORY","rationale":"Targeting billflow project in DEV workspace under HERMES v5 portfolio rules."}
+{"schema":"hermes.dispatch.v5","timestamp":"2026-07-25T11:54:00+03:00","phase":"2.0","action":"STATIC_AUDIT","rationale":"Dispatched Security and Developer agents in parallel to perform static analysis on API routes and dependencies."}
+{"schema":"hermes.dispatch.v5","timestamp":"2026-07-25T11:56:00+03:00","phase":"4.0","action":"CODE_VERIFICATION","rationale":"Dispatched QA agent to run Vitest and tsc verification. Discovered 2 findings: missing dependencies and email template currency formatting."}
+{"schema":"hermes.dispatch.v5","timestamp":"2026-07-25T11:58:00+03:00","phase":"8.0","action":"FALSIFICATION","rationale":"Falsifier agent evaluated findings F-001 and F-002 against reachability and reproduction criteria. Both survived."}
+{"schema":"hermes.dispatch.v5","timestamp":"2026-07-25T12:00:00+03:00","phase":"9.0","action":"REMEDIATION","rationale":"Developer agent applied fixes for F-001 and F-002. Re-verification confirmed 100% pass on tsc and vitest."}

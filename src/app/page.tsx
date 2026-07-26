@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+const MotionDiv = motion.div as any;
+
 const features = [
   {
     icon: Sparkles,
@@ -306,7 +308,7 @@ export default function LandingPage() {
 
             {/* Animated invoice mockup */}
             <div className="relative">
-              <motion.div
+              <MotionDiv
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
@@ -362,9 +364,9 @@ export default function LandingPage() {
                     <p className="text-[10px] text-gray-500">Due May 15, 2026</p>
                   </div>
                 </div>
-              </motion.div>
+              </MotionDiv>
               {/* Floaty badge */}
-              <motion.div
+              <MotionDiv
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.8, duration: 0.4 }}
@@ -372,7 +374,7 @@ export default function LandingPage() {
               >
                 <Sparkles className="h-4 w-4" />
                 <span className="text-sm font-medium">AI generated</span>
-              </motion.div>
+              </MotionDiv>
             </div>
           </div>
         </div>

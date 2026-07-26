@@ -1,0 +1,48 @@
+{
+  "schema": "hermes.diff.v4",
+  "run_id": "hermes-2026-07-25-b401",
+  "files_changed": 3,
+  "insertions": 9,
+  "deletions": 3,
+  "net_loc": 6,
+  "changes": [
+    {
+      "file": "package.json",
+      "intent": "deps",
+      "why": "Add missing framer-motion and next-themes dependencies to resolve tsc error",
+      "risk": "low"
+    },
+    {
+      "file": "src/app/page.tsx",
+      "intent": "fix",
+      "why": "Cast motion.div to MotionDiv to resolve React 19 motion component prop type mismatch",
+      "risk": "low"
+    },
+    {
+      "file": "src/app/api/invoices/[id]/send/route.ts",
+      "intent": "fix",
+      "why": "Import formatCurrency and use invoice.currency in email notification template instead of hardcoded $",
+      "risk": "low"
+    }
+  ],
+  "new_dependencies": [
+    {
+      "name": "framer-motion",
+      "version": "^12.4.7",
+      "justification": "Required by Landing page animations in src/app/page.tsx",
+      "transitive_added": 2,
+      "license": "MIT"
+    },
+    {
+      "name": "next-themes",
+      "version": "^0.4.4",
+      "justification": "Required by ThemeProvider component in src/components/theme-provider.tsx",
+      "transitive_added": 1,
+      "license": "MIT"
+    }
+  ],
+  "acceptance_criteria_addressed": ["AC-1", "AC-2", "AC-3"],
+  "deliberately_not_addressed": [],
+  "public_api_changed": false,
+  "migration_required": false
+}

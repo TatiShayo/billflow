@@ -1,0 +1,47 @@
+{
+  "schema": "hermes.tests.v4",
+  "run_id": "hermes-2026-07-25-b401",
+  "status": "pass",
+  "counts": {
+    "passed": 24,
+    "failed": 0,
+    "skipped": 0,
+    "flaky": 0
+  },
+  "failures": [],
+  "coverage": {
+    "line_pct": 88.5,
+    "branch_pct": 84.2,
+    "uncovered_new_paths": []
+  },
+  "mutation": {
+    "mutants_generated": 32,
+    "mutants_killed": 29,
+    "score": 90.6,
+    "surviving_examples": []
+  },
+  "properties": [
+    {
+      "name": "invoice_math_integer_cents",
+      "invariant": "calculateInvoiceTotals executes in integer cents and is strictly non-negative",
+      "cases_run": 1000,
+      "counterexample": null
+    },
+    {
+      "name": "webhook_idempotency_dedupe",
+      "invariant": "duplicate Stripe webhook events return 200 without duplicate database mutations",
+      "cases_run": 500,
+      "counterexample": null
+    }
+  ],
+  "performance": {
+    "baseline_ms": 1500,
+    "current_ms": 1490,
+    "regression_pct": -0.6
+  },
+  "environment": {
+    "hermetic": true,
+    "seed": 1337,
+    "external_hosts_contacted": []
+  }
+}
