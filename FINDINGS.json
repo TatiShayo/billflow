@@ -3,7 +3,7 @@
   "run_id": "hermes-2026-07-27-v6-billflow",
   "project": "billflow",
   "phase": "4.0",
-  "produced_at": "2026-07-27T22:25:24.425027",
+  "produced_at": "2026-07-27T22:44:51.356370",
   "runner_tier": "T1",
   "mode": "static-only",
   "findings": []
