@@ -45,8 +45,7 @@ const stripePromise = loadStripe(
 );
 
 export default function SettingsPage() {
-  const { user, profile, signOut } = useAuth();
-  const router = useRouter();
+  const { user, profile } = useAuth();
   const searchParams = useSearchParams();
   const supabase = createClient();
 

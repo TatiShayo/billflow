@@ -267,11 +267,12 @@ export async function GET(
   );
 
   const pdfBuffer = await renderToBuffer(doc);
+  const safeInvoiceNumber = (invoice.invoice_number || id || "download").replace(/[^a-zA-Z0-9_\-\.]/g, "_");
 
   return new NextResponse(new Uint8Array(pdfBuffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="Invoice-${invoice.invoice_number}.pdf"`,
+      "Content-Disposition": `attachment; filename="Invoice-${safeInvoiceNumber}.pdf"`,
     },
   });
 }

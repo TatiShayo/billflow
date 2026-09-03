@@ -115,6 +115,7 @@ create table expenses (
 );
 
 alter table profiles enable row level security;
+alter table subscriptions enable row level security;
 alter table clients enable row level security;
 alter table invoices enable row level security;
 alter table invoice_items enable row level security;
@@ -155,6 +156,7 @@ $$;
 create or replace trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+create policy "Users own their data" on subscriptions for all using (auth.uid() = user_id);
 create policy "Users own their data" on clients for all using (auth.uid() = user_id);
 create policy "Users own their data" on invoices for all using (auth.uid() = user_id);
 create policy "Users own their data" on invoice_items for all using (

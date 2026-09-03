@@ -15,11 +15,8 @@ import {
   CheckCircle,
   Pencil,
   Loader2,
-  Building2,
-  User,
   Phone,
   MailIcon,
-  MapPin,
 } from "lucide-react";
 import { format } from "date-fns";
 import {

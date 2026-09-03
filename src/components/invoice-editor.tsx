@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
@@ -24,11 +24,8 @@ import {
   Loader2,
   Save,
   Send,
-  Eye,
-  Calculator,
   ArrowLeft,
 } from "lucide-react";
-import { format } from "date-fns";
 import {
   formatCurrency,
   CURRENCIES,

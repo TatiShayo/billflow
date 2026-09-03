@@ -17,15 +17,11 @@ import {
   Star,
   ChevronDown,
   ChevronUp,
-  Mail,
   Loader2,
-  Zap,
-  Users,
-  BarChart3,
-  Shield,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MotionDiv = motion.div as any;
 
 const features = [

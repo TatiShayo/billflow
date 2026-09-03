@@ -19,8 +19,9 @@ export interface InvoiceTotals {
  * (e.g. 0.1 + 0.2 !== 0.3). Values are converted back to decimal dollars
  * only at the boundary.
  *
- * Hardening / invariants (each locked by a test in invoice-utils.test.ts):
+ * Hardening / invariants:
  *  - Negative quantities, unit prices, tax rates and discounts are clamped to 0.
+ *  - Infinite / non-finite inputs are safely converted to 0.
  *  - Fixed discounts are rounded to whole cents (no sub-cent precision).
  *  - Discount can never exceed subtotal + tax, so total is never negative.
  */
@@ -30,19 +31,29 @@ export function calculateInvoiceTotals(
   discountType: "fixed" | "percent",
   discountValue: string | number
 ): InvoiceTotals {
-  const toCents = (n: string | number): number => Math.round((Number(n) || 0) * 100);
+  const toCents = (n: string | number): number => {
+    const num = Number(n);
+    return Number.isFinite(num) ? Math.round(num * 100) : 0;
+  };
+
+  const safeItems = Array.isArray(lineItems) ? lineItems : [];
 
   // Subtotal: round each line to whole cents (matches per-line display) then sum.
-  const subtotalCents = lineItems.reduce((sum, item) => {
-    const qty = Math.max(0, Number(item.quantity) || 0);
-    const price = Math.max(0, Number(item.unitPrice) || 0);
+  const subtotalCents = safeItems.reduce((sum, item) => {
+    if (!item) return sum;
+    const rawQty = Number(item.quantity);
+    const rawPrice = Number(item.unitPrice);
+    const qty = Number.isFinite(rawQty) ? Math.max(0, rawQty) : 0;
+    const price = Number.isFinite(rawPrice) ? Math.max(0, rawPrice) : 0;
     return sum + Math.round(qty * price * 100);
   }, 0);
 
-  const parsedTaxRate = Math.max(0, Number(taxRate) || 0);
+  const rawTaxRate = Number(taxRate);
+  const parsedTaxRate = Number.isFinite(rawTaxRate) ? Math.max(0, rawTaxRate) : 0;
   const taxCents = Math.round((subtotalCents * parsedTaxRate) / 100);
 
-  const parsedDiscountValue = Math.max(0, Number(discountValue) || 0);
+  const rawDiscountVal = Number(discountValue);
+  const parsedDiscountValue = Number.isFinite(rawDiscountVal) ? Math.max(0, rawDiscountVal) : 0;
   const rawDiscountCents =
     discountType === "percent"
       ? Math.round((subtotalCents * parsedDiscountValue) / 100)
@@ -62,8 +73,10 @@ export function calculateInvoiceTotals(
 }
 
 export function incrementInvoiceNumber(prefix: string, lastNumber: number): string {
-  const next = (lastNumber || 0) + 1;
-  return `${prefix}-${String(next).padStart(4, "0")}`;
+  const cleanPrefix = (prefix || "INV").trim();
+  const rawNum = Number(lastNumber);
+  const next = (Number.isFinite(rawNum) ? Math.max(0, Math.floor(rawNum)) : 0) + 1;
+  return `${cleanPrefix}-${String(next).padStart(4, "0")}`;
 }
 
 /**
@@ -86,7 +99,10 @@ export function validateInvoiceTotals(
   discountValue: string | number
 ): { ok: boolean; expected: InvoiceTotals } {
   const expected = calculateInvoiceTotals(lineItems, taxRate, discountType, discountValue);
-  const cents = (n: number) => Math.round((Number(n) || 0) * 100);
+  const cents = (n: number) => {
+    const num = Number(n);
+    return Number.isFinite(num) ? Math.round(num * 100) : 0;
+  };
   const ok =
     cents(persisted.subtotal) === cents(expected.subtotal) &&
     cents(persisted.taxAmount) === cents(expected.taxAmount) &&
@@ -101,7 +117,7 @@ export function validateInvoiceTotals(
  * `new Date("2024-02-29")` parses as UTC midnight, which in any negative-offset
  * timezone renders as Feb 28 — an off-by-one on due dates that decides whether
  * an invoice is overdue. Building the Date from explicit parts pins it to the
- * local day the user actually typed. Leap-year safe (locked by test).
+ * local day the user actually typed. Leap-year safe.
  */
 export function parseInvoiceDate(dateStr: string): Date {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr || "");

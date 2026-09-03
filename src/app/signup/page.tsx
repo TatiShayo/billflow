@@ -37,13 +37,16 @@ export default function SignupPage() {
     }
 
     if (data.user) {
-      // Profile is auto-created via trigger or we create manually
-      await supabase.from("profiles").upsert({
-        id: data.user.id,
-        full_name: fullName,
-        subscription_tier: "free",
-        default_currency: "USD",
-      });
+      // Profile is auto-created via database trigger on auth.users insert.
+      // Update full_name on the profile (RLS allows non-sensitive field updates).
+      try {
+        await supabase
+          .from("profiles")
+          .update({ full_name: fullName })
+          .eq("id", data.user.id);
+      } catch (err) {
+        console.error("Profile name sync warning:", err);
+      }
       toast.success("Account created! Check your email to verify.");
       router.push("/dashboard");
       router.refresh();

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { rateLimit, rateLimitResponseInit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -7,6 +8,20 @@ export async function GET(
 ) {
   try {
     const { token } = await params;
+
+    // Validate token input: non-empty, no control chars or null bytes, reasonable length
+    if (!token || typeof token !== "string" || token.length > 128 || /[\x00-\x1F\x7F]/.test(token)) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 400 });
+    }
+
+    // Rate limit per token to mitigate brute-force enumeration attacks
+    const limited = rateLimit(`pay_token:${token.slice(0, 32)}`, 60, 60_000);
+    if (!limited.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        rateLimitResponseInit(limited)
+      );
+    }
 
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

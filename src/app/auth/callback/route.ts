@@ -1,12 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { sanitizeRedirectPath } from "@/lib/utils";
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const rawNext = searchParams.get("next") ?? "/dashboard";
-  // Open-redirect guard: only same-origin paths ("/x" but not "//host") allowed.
-  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
+  const rawNext = searchParams.get("next");
+  // Open-redirect & CRLF guard: only same-origin relative paths permitted.
+  const next = sanitizeRedirectPath(rawNext, "/dashboard");
 
   if (code) {
     const response = NextResponse.redirect(`${origin}${next}`);

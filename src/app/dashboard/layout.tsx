@@ -126,7 +126,7 @@ export default function DashboardLayout({
 
         <div className="border-t border-border p-3">
           {tier === "free" && (
-            <Link href="/dashboard/settings/billing">
+            <Link href="/dashboard/settings?tab=billing">
               <div className="mb-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
                 <div className="mb-1 flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5 text-emerald-400" />

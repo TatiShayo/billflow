@@ -29,7 +29,6 @@ import {
   Loader2,
   Search,
   Trash2,
-  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 import {

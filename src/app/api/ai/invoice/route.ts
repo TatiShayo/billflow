@@ -4,10 +4,37 @@ import { rateLimit, rateLimitResponseInit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-const aiInvoiceSchema = z.object({
-  description: z.string().trim().min(1).max(4000),
+export const aiInvoiceInputSchema = z.object({
+  description: z.string().trim().min(1, "Description is required").max(4000, "Description cannot exceed 4000 characters"),
   currency: z.string().trim().max(8).optional(),
 });
+
+export const aiInvoiceItemSchema = z.object({
+  description: z.string().trim().min(1).max(500).default("Professional Services"),
+  quantity: z.coerce.number().finite().nonnegative().max(1_000_000).default(1),
+  unitPrice: z.coerce.number().finite().nonnegative().max(1_000_000_000).default(0),
+});
+
+export const aiInvoiceOutputSchema = z.object({
+  items: z.array(aiInvoiceItemSchema).min(1).max(100),
+  suggestedPaymentTerms: z.string().trim().max(100).default("Net 30"),
+  notes: z.string().trim().max(2000).default(""),
+});
+
+export function sanitizeAiOutput(rawContent: string): z.infer<typeof aiInvoiceOutputSchema> {
+  if (!rawContent || typeof rawContent !== "string") {
+    throw new Error("AI output must be a non-empty string");
+  }
+  let cleaned = rawContent.trim();
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```(?:json)?\n?/i, "").replace(/\n?```$/i, "").trim();
+  }
+  const parsed = JSON.parse(cleaned);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("AI output must be an object");
+  }
+  return aiInvoiceOutputSchema.parse(parsed);
+}
 
 export async function POST(request: Request) {
   try {
@@ -47,7 +74,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const parsed = aiInvoiceSchema.safeParse(await request.json().catch(() => null));
+    const parsed = aiInvoiceInputSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Description is required (max 4000 chars)" },
@@ -62,7 +89,7 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "system",
-          content: `You are a professional invoice assistant. Parse the following work description and return ONLY a JSON object (no preamble, no markdown) with this structure:
+          content: `You are a professional invoice assistant. Parse the following work description and return ONLY a valid JSON object (no preamble, no markdown, no backticks) with this structure:
 {
   "items": [{ "description": string, "quantity": number, "unitPrice": number }],
   "suggestedPaymentTerms": string,
@@ -95,15 +122,16 @@ Rules:
       );
     }
 
-    // Clean JSON parsing
-    let cleaned = content.trim();
-    if (cleaned.startsWith("```")) {
-      cleaned = cleaned.replace(/```json\n?/g, "").replace(/```\n?/g, "");
+    try {
+      const validatedResult = sanitizeAiOutput(content);
+      return NextResponse.json(validatedResult);
+    } catch (parseError) {
+      console.error("AI response JSON parsing/validation failed:", parseError, "Raw content:", content);
+      return NextResponse.json(
+        { error: "Failed to parse AI invoice structure. Please try again with more details." },
+        { status: 502 }
+      );
     }
-
-    const result = JSON.parse(cleaned);
-
-    return NextResponse.json(result);
   } catch (error) {
     console.error("AI invoice error:", error);
     return NextResponse.json(

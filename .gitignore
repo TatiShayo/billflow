@@ -11,3 +11,24 @@ build/
 coverage/
 .turbo/
 .github/workflows/
+
+# Universal HERMES Ignore Rules
+.npm-cache/
+out/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+venv/
+.venv/
+env/
+*.egg-info/
+.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+$null
+*.zip
+Thumbs.db
+*.tsbuildinfo

@@ -3,6 +3,7 @@ import { getResend } from "@/lib/resend";
 import { rateLimit, rateLimitResponseInit } from "@/lib/rate-limit";
 import { validateInvoiceTotals } from "@/lib/invoice-utils";
 import { formatCurrency, type Currency } from "@/lib/types";
+import { escapeHtml, sanitizeHeaderValue } from "@/lib/utils";
 import { NextResponse } from "next/server";
 
 export async function POST(
@@ -83,8 +84,12 @@ export async function POST(
 
   try {
     const resend = getResend();
-    const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
-    const fromName = profile?.company_name || "BillFlow";
+    const fromEmail = sanitizeHeaderValue(process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev");
+    const rawFromName = profile?.company_name || "BillFlow";
+    const fromName = sanitizeHeaderValue(rawFromName, "BillFlow");
+    const toEmail = sanitizeHeaderValue(invoice.client.email);
+    const invoiceNum = sanitizeHeaderValue(invoice.invoice_number, id);
+    const subject = `Invoice ${invoiceNum} from ${fromName}`;
 
     // Get share token for the pay link
     const { data: shareToken } = await supabase
@@ -94,11 +99,14 @@ export async function POST(
       .single();
 
     const payToken = shareToken?.token || invoice.payment_token || id;
+    const clientNameEscaped = escapeHtml(invoice.client.name || "Customer");
+    const companyNameEscaped = escapeHtml(rawFromName);
+    const invoiceNumEscaped = escapeHtml(invoice.invoice_number);
 
     await resend.emails.send({
       from: `${fromName} <${fromEmail}>`,
-      to: invoice.client.email,
-      subject: `Invoice ${invoice.invoice_number} from ${profile?.company_name || "BillFlow"}`,
+      to: toEmail,
+      subject,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #f9fafb; border-radius: 12px;">
           <div style="background: #111a17; border-radius: 12px; padding: 32px; color: white;">
@@ -106,12 +114,12 @@ export async function POST(
             <p style="margin: 0; color: #10b981; font-size: 13px;">Simple Invoicing for Freelancers</p>
           </div>
           <div style="padding: 32px; background: white; border-radius: 0 0 12px 12px;">
-            <h2 style="color: #111; margin: 0 0 16px;">Invoice ${invoice.invoice_number}</h2>
-            <p style="color: #555; line-height: 1.6;">Hi ${invoice.client.name},</p>
+            <h2 style="color: #111; margin: 0 0 16px;">Invoice ${invoiceNumEscaped}</h2>
+            <p style="color: #555; line-height: 1.6;">Hi ${clientNameEscaped},</p>
             <p style="color: #555; line-height: 1.6;">
-              ${profile?.company_name || "A freelancer"} has sent you an invoice for <strong style="color: #111;">${formatCurrency(Number(invoice.total), (invoice.currency || "USD") as Currency)}</strong>, due ${new Date(invoice.due_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.
+              ${companyNameEscaped || "A freelancer"} has sent you an invoice for <strong style="color: #111;">${formatCurrency(Number(invoice.total), (invoice.currency || "USD") as Currency)}</strong>, due ${new Date(invoice.due_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.
             </p>
-            <a href="${appUrl}/pay/${payToken}" style="display: inline-block; background: #10b981; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 16px 0; font-size: 15px;">View Invoice</a>
+            <a href="${appUrl}/pay/${encodeURIComponent(payToken)}" style="display: inline-block; background: #10b981; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 16px 0; font-size: 15px;">View Invoice</a>
             <p style="color: #888; font-size: 12px; margin-top: 32px; border-top: 1px solid #eee; padding-top: 16px;">Sent via <strong>BillFlow</strong> — Simple invoicing for freelancers</p>
           </div>
         </div>

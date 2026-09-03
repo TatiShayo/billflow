@@ -142,11 +142,20 @@ export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
 ];
 
 export function formatCurrency(amount: number, currency: Currency): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-  }).format(amount);
+  const numericAmount = Number(amount);
+  const safeAmount = Number.isFinite(numericAmount) ? (Object.is(numericAmount, -0) ? 0 : numericAmount) : 0;
+  const safeCurrency = (CURRENCIES.includes(currency) ? currency : "USD") as Currency;
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: safeCurrency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(safeAmount);
+  } catch {
+    const symbol = CURRENCY_SYMBOLS[safeCurrency] || "$";
+    return `${symbol}${safeAmount.toFixed(2)}`;
+  }
 }
 
 export function getStatusColor(status: InvoiceStatus): string {

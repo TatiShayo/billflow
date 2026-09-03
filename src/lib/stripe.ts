@@ -28,3 +28,8 @@ export function getProPriceId() {
 export function getBusinessPriceId() {
   return process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID!;
 }
+
+export function createStripeIdempotencyKey(action: string, entityId: string, timestampWindowMinutes = 5): string {
+  const windowSlot = Math.floor(Date.now() / (timestampWindowMinutes * 60 * 1000));
+  return `${action}:${entityId}:${windowSlot}`;
+}
