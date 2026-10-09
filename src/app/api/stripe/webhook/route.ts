@@ -31,14 +31,28 @@ export async function POST(request: Request) {
   }
 
   let event: Stripe.Event;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  // Distinguish "not configured" from "bad signature". Returning 400 for both
+  // makes a misconfigured deploy look like an attack, and Stripe then retries
+  // forever while customers sit paid-but-not-upgraded. A missing secret is an
+  // operational fault: return 503 so it retries, and log loudly.
+  if (!webhookSecret) {
+    console.error(
+      "FATAL: STRIPE_WEBHOOK_SECRET is not configured. Refusing to process webhook. " +
+        "Set it in your environment (see .env.example) and in the Stripe dashboard."
+    );
+    return NextResponse.json(
+      { error: "Webhook endpoint is not configured" },
+      { status: 503 }
+    );
+  }
+
   try {
     const stripe = getStripe();
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
-  } catch {
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+  } catch (err) {
+    console.error("Stripe webhook signature verification failed:", err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
