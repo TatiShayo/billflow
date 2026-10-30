@@ -37,7 +37,6 @@ export async function middleware(request: NextRequest) {
   // These are the only unauthenticated entries into /api/invoices. Both are
   // authorised by possession of an unguessable token (share token or
   // `payment_token`), which the route handlers verify themselves.
-  //
   // `/api/invoices` was in `protectedPaths` wholesale, which 307-redirected
   // guests to /login before the route's own share-token branch could run —
   // making every share-link PDF dead. The route self-guards, so only the two

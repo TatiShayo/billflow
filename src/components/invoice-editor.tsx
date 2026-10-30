@@ -98,7 +98,6 @@ export function InvoiceEditor({ invoiceId }: InvoiceEditorProps) {
   async function loadData() {
     setLoading(true);
 
-    // Load clients
     const { data: clientData } = await supabase
       .from("clients")
       .select("*")
@@ -108,7 +107,6 @@ export function InvoiceEditor({ invoiceId }: InvoiceEditorProps) {
     setClients(clientData || []);
 
     if (invoiceId) {
-      // Load invoice
       const { data: invoice } = await supabase
         .from("invoices")
         .select("*")
@@ -125,7 +123,6 @@ export function InvoiceEditor({ invoiceId }: InvoiceEditorProps) {
         setNotes(invoice.notes || "");
         setStatus(invoice.status);
 
-        // Load items
         const { data: items } = await supabase
           .from("invoice_items")
           .select("*")
@@ -143,7 +140,6 @@ export function InvoiceEditor({ invoiceId }: InvoiceEditorProps) {
           );
         }
 
-        // Determine discount
         if (Number(invoice.discount_amount) > 0) {
           setDiscountType("fixed");
           setDiscountValue(invoice.discount_amount.toString());
@@ -160,7 +156,6 @@ export function InvoiceEditor({ invoiceId }: InvoiceEditorProps) {
     setLoading(false);
   }
 
-  // Load invoice if editing
   useEffect(() => {
     if (!user) return;
     loadData();
@@ -244,7 +239,6 @@ export function InvoiceEditor({ invoiceId }: InvoiceEditorProps) {
       }
       invoiceData = data as Invoice;
 
-      // Delete old items and re-insert
       await supabase.from("invoice_items").delete().eq("invoice_id", invoiceId);
     } else {
       const { data, error } = await supabase
@@ -267,7 +261,6 @@ export function InvoiceEditor({ invoiceId }: InvoiceEditorProps) {
         .eq("id", user!.id);
     }
 
-    // Save line items
     if (invoiceData) {
       await supabase.from("invoice_items").insert(
         lineItems.map((item, idx) => ({

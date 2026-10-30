@@ -9,7 +9,6 @@ export async function GET(
   try {
     const { token } = await params;
 
-    // Validate token input: non-empty, no control chars or null bytes, reasonable length
     if (!token || typeof token !== "string" || token.length > 128 || /[\x00-\x1F\x7F]/.test(token)) {
       return NextResponse.json({ error: "Invalid token" }, { status: 400 });
     }

@@ -29,9 +29,7 @@ import {
 } from "../app/api/ai/invoice/route";
 import { formatCurrency, CURRENCIES, CURRENCY_SYMBOLS, TIER_LIMITS, type Currency } from "../lib/types";
 
-/* ========================================================================== */
 /* 1. IDOR & TENANT ISOLATION TESTS                                          */
-/* ========================================================================== */
 describe("Archetype 1: IDOR & Tenant Isolation", () => {
   it("prevents cross-tenant access in tenant-filtered datasets", () => {
     interface RecordWithUser {
@@ -153,9 +151,7 @@ describe("Archetype 1: IDOR & Tenant Isolation", () => {
   });
 });
 
-/* ========================================================================== */
 /* 2. TOCTOU & CONCURRENCY TESTS                                             */
-/* ========================================================================== */
 describe("Archetype 2: TOCTOU & Concurrency", () => {
   it("handles webhook event idempotency under simultaneous duplicate deliveries", () => {
     const ledger = new Set<string>();
@@ -228,9 +224,7 @@ describe("Archetype 2: TOCTOU & Concurrency", () => {
   });
 });
 
-/* ========================================================================== */
 /* 3. PROTOTYPE POLLUTION & OBJECT KEY INJECTION                             */
-/* ========================================================================== */
 describe("Archetype 3: Prototype Pollution & Object Key Injection", () => {
   it("rejects prototype pollution keys in JSON payloads without mutating Object.prototype", () => {
     const pollutedJson = '{"__proto__": {"polluted": "yes"}, "constructor": {"prototype": {"admin": true}}, "description": "Consulting work"}';
@@ -293,9 +287,7 @@ describe("Archetype 3: Prototype Pollution & Object Key Injection", () => {
   });
 });
 
-/* ========================================================================== */
 /* 4. PARSER DESYNC & MALFORMED PAYLOADS                                     */
-/* ========================================================================== */
 describe("Archetype 4: Parser Desync & Malformed Payloads", () => {
   it("handles malformed JSON, trailing commas, and incomplete JSON strings gracefully", () => {
     const malformedPayloads = [
@@ -349,9 +341,7 @@ describe("Archetype 4: Parser Desync & Malformed Payloads", () => {
   });
 });
 
-/* ========================================================================== */
 /* 5. CRLF & HEADER INJECTION TESTS                                          */
-/* ========================================================================== */
 describe("Archetype 5: CRLF & Header Injection", () => {
   it("strips CRLF (\\r, \\n) from email and HTTP header inputs", () => {
     const maliciousHeader = "BillFlow Freelancer\r\nSet-Cookie: session=hijacked\r\nBcc: evil@attacker.com";
@@ -432,9 +422,7 @@ describe("Archetype 5: CRLF & Header Injection", () => {
   });
 });
 
-/* ========================================================================== */
 /* 6. ARITHMETIC EDGE CASES & MONEY INTEGRITY                                */
-/* ========================================================================== */
 describe("Archetype 6: Arithmetic Edge Cases & Money Integrity", () => {
   it("never yields negative total under any extreme discount or negative inputs", () => {
     // 200 fuzzing iterations with random chaotic inputs
@@ -514,9 +502,7 @@ describe("Archetype 6: Arithmetic Edge Cases & Money Integrity", () => {
   });
 });
 
-/* ========================================================================== */
 /* 7. REDOS & BUFFER LIMIT TESTS                                             */
-/* ========================================================================== */
 describe("Archetype 7: ReDoS & Buffer Limits", () => {
   it("evaluates parseInvoiceDate linearly without backtracking on evil input patterns", () => {
     const evilDateString = "2024-" + "9".repeat(50_000) + "-01";
@@ -573,9 +559,7 @@ describe("Archetype 7: ReDoS & Buffer Limits", () => {
   });
 });
 
-/* ========================================================================== */
 /* 8. CRYPTOGRAPHIC TIMING ATTACKS & TOKEN SECURITY                         */
-/* ========================================================================== */
 describe("Archetype 8: Cryptographic Timing Attacks & Token Security", () => {
   it("timingSafeCompare returns true for strictly identical strings", () => {
     const secret = "dummy_live_token_for_timing_safe_test_12345";

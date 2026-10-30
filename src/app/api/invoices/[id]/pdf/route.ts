@@ -99,7 +99,6 @@ export async function GET(
     // this branch previously always 404'd (share-link PDFs were dead).
     const admin = createServiceClient();
 
-    // Check if the parameter 'id' itself is a share token
     const { data: shareToken } = await admin
       .from("share_tokens")
       .select("invoice_id, expires_at")
@@ -114,7 +113,6 @@ export async function GET(
         .single();
       invoice = data;
     } else if (token) {
-      // Check if query param token is the payment_token
       const { data } = await admin
         .from("invoices")
         .select("*, client:clients(*), items:invoice_items(*)")
@@ -124,7 +122,6 @@ export async function GET(
       invoice = data;
 
       if (!invoice) {
-        // Check if query param token is a share token for THIS invoice
         const { data: shareTokenByQuery } = await admin
           .from("share_tokens")
           .select("invoice_id, expires_at")
@@ -149,7 +146,6 @@ export async function GET(
   }
 
   // Company header comes from the invoice OWNER's profile. For token access,
-  // fetch it via service role (the anon client cannot read profiles).
   const profileClient = user ? supabase : createServiceClient();
   const { data: profile } = await profileClient
     .from("profiles")

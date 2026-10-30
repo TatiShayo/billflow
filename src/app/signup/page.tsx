@@ -38,7 +38,6 @@ export default function SignupPage() {
 
     if (data.user) {
       // Profile is auto-created via database trigger on auth.users insert.
-      // Update full_name on the profile (RLS allows non-sensitive field updates).
       try {
         await supabase
           .from("profiles")

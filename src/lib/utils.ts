@@ -26,7 +26,6 @@ export function escapeHtml(unsafe: unknown): string {
 export function sanitizeHeaderValue(value: unknown, fallback = ""): string {
   if (value === null || value === undefined) return fallback;
   const str = String(value);
-  // Remove \r, \n, null bytes, and all ASCII control characters
   const cleaned = str.replace(/[\r\n\x00-\x1F\x7F]/g, "").trim();
   return cleaned || fallback;
 }

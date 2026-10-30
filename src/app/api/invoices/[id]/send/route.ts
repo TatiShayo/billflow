@@ -91,7 +91,6 @@ export async function POST(
     const invoiceNum = sanitizeHeaderValue(invoice.invoice_number, id);
     const subject = `Invoice ${invoiceNum} from ${fromName}`;
 
-    // Get share token for the pay link
     const { data: shareToken } = await supabase
       .from("share_tokens")
       .select("token")
@@ -126,7 +125,6 @@ export async function POST(
       `,
     });
 
-    // Update status to sent
     await supabase
       .from("invoices")
       .update({ status: "sent" })

@@ -86,7 +86,6 @@ export default function ClientsPage() {
     const clientList = (data || []) as Client[];
     setClients(clientList);
 
-    // Get invoice counts
     const { data: invoices } = await supabase
       .from("invoices")
       .select("client_id, total")
